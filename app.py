@@ -4,7 +4,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from linebot.exceptions import InvalidSignatureError
 from firestore_utils_lazy_env import log_task
 from datetime import datetime
-import os
+import os, traceback
 
 app = Flask(__name__)
 line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
@@ -26,13 +26,18 @@ def webhook():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    text = event.message.text.strip()
-    result = f"✅ 你成功連到我了：{text}"
-    log_task({
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "command": text,
-        "source_id": getattr(event.source, "user_id", ""),
-        "source_type": "User" if hasattr(event.source, "user_id") else "Group",
-        "result": result
-    })
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=result))
+    try:
+        text = event.message.text.strip()
+        result = f"✅ 你成功連到我了：{text}"
+        log_task({
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "command": text,
+            "source_id": getattr(event.source, "user_id", ""),
+            "source_type": "User" if hasattr(event.source, "user_id") else "Group",
+            "result": result
+        })
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=result))
+    except Exception as e:
+        err_msg = f"❌ 發生錯誤：{str(e)}\n{traceback.format_exc(limit=2)}"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=err_msg))
+        raise e
