@@ -90,3 +90,59 @@ def delete_task():
 @app.route("/download_log")
 def download_log():
     return send_file("task_log.csv", as_attachment=True)
+
+from linebot.models import MessageEvent, TextMessage, TextSendMessage
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    signature = request.headers.get("X-Line-Signature")
+    body = request.get_data(as_text=True)
+    try:
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
+    return "OK"
+
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text="✅ 你的訊息我收到了！")
+    )
+
+
+import importlib
+from firestore_utils import get_all_keywords, log_task
+
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    user_msg = event.message.text.strip()
+    if user_msg.startswith("#"):
+        command = user_msg[1:].strip()
+        keyword_map = get_all_keywords()
+        matched_task = None
+        for task, keywords in keyword_map.items():
+            if any(k in command for k in keywords):
+                matched_task = task
+                break
+
+        if matched_task:
+            try:
+                module_name = f"tasks.task_{matched_task[-1].lower()}"
+                task_module = importlib.import_module(module_name)
+                result = task_module.run(event)
+            except Exception as e:
+                result = f"❌ 任務 {matched_task} 執行失敗：{e}"
+        else:
+            result = f"⚠️ 指令「{command}」尚未支援"
+
+        log_task({
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "command": command,
+            "source_id": event.source.user_id if hasattr(event.source, "user_id") else "",
+            "source_type": "User" if hasattr(event.source, "user_id") else "Group",
+            "result": result
+        })
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=result))
+    else:
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="請使用 #指令格式，例如：#任務A"))
