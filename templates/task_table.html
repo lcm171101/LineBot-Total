@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>任務管理介面</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .status-pending { color: red; }
+        .status-done { color: green; }
+    </style>
+</head>
+<body>
+    <h2>📋 任務紀錄總覽</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>時間</th>
+                <th>指令</th>
+                <th>來源 ID</th>
+                <th>來源類型</th>
+                <th>任務狀態</th>
+                <th>重試次數</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+                <tr>
+                    <td>{{ row[0] }}</td>
+                    <td>{{ row[1] }}</td>
+                    <td>{{ row[2] }}</td>
+                    <td>{{ row[3] }}</td>
+                    <td class="{{ 'status-pending' if row[4] == '' else 'status-done' }}">{{ row[4] or '尚未執行' }}</td>
+                    <td>{{ row[5] }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

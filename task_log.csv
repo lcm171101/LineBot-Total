@@ -1,0 +1,5 @@
+﻿時間,指令,來源ID,來源類型,任務狀態
+2025-05-24 10:00,任務A,Uxxxxxxxxxxxxxxxxxxxxx,User,
+2025-05-24 10:10,任務B,Cxxxxxxxxxxxxxxxxxxxxx,Group,
+2025-05-24 10:20,任務C,Uyyyyyyyyyyyyyyyyyyyyy,User,✅ 任務C 處理成功
+2025-05-24 10:30,任務D,Cyyyyyyyyyyyyyyyyyyyyy,Group,⚠️ 指令「任務D」尚未支援
