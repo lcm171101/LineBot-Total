@@ -2,6 +2,8 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from linebot.exceptions import InvalidSignatureError
+from firestore_utils import log_task
+from datetime import datetime
 import os
 
 app = Flask(__name__)
@@ -24,7 +26,13 @@ def webhook():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text="✅ 你成功連到我了！")
-    )
+    text = event.message.text.strip()
+    result = f"✅ 你成功連到我了：{text}"
+    log_task({
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "command": text,
+        "source_id": getattr(event.source, "user_id", ""),
+        "source_type": "User" if hasattr(event.source, "user_id") else "Group",
+        "result": result
+    })
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=result))
