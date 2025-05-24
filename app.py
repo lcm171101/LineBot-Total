@@ -28,7 +28,17 @@ def webhook():
 def handle_message(event):
     try:
         text = event.message.text.strip()
-        result = f"✅ 你成功連到我了：{text}"
+        if text.startswith("#"):
+            command = text[1:].strip()  # 例如：任務A
+            if command == "任務A":
+                result = "🚀 任務A 已啟動中..."
+            elif command == "任務B":
+                result = "🔧 任務B 執行完成 ✅"
+            else:
+                result = f"⚠️ 指令「{command}」尚未支援"
+        else:
+            result = f"✅ 你成功連到我了：{text}"
+
         log_task({
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "command": text,
@@ -36,6 +46,7 @@ def handle_message(event):
             "source_type": "User" if hasattr(event.source, "user_id") else "Group",
             "result": result
         })
+
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=result))
     except Exception as e:
         err_msg = f"❌ 發生錯誤：{str(e)}\n{traceback.format_exc(limit=2)}"
