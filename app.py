@@ -118,3 +118,40 @@ def view_registry():
         print("❌ 無法載入任務詞庫：", e)
         keyword_map = {}
     return render_template("task_registry.html", keyword_map=keyword_map)
+
+
+from flask import request, redirect, url_for
+
+@app.route("/add_keyword", methods=["GET", "POST"])
+def add_keyword():
+    try:
+        with open("task_keywords.json", "r", encoding="utf-8") as f:
+            keyword_map = json.load(f)
+    except Exception as e:
+        print("❌ 無法讀取任務詞庫：", e)
+        keyword_map = {}
+
+    if request.method == "POST":
+        task = request.form.get("task", "").strip()
+        keywords = [k.strip() for k in request.form.get("keywords", "").split(",") if k.strip()]
+
+        if task and keywords:
+            if task in keyword_map:
+                keyword_map[task].extend(keywords)
+                keyword_map[task] = list(set(keyword_map[task]))  # 去除重複
+            else:
+                keyword_map[task] = keywords
+
+            with open("task_keywords.json", "w", encoding="utf-8") as f:
+                json.dump(keyword_map, f, ensure_ascii=False, indent=2)
+            
+            # 自動建立對應任務模組檔案（如 task_e.py）
+            task_suffix = task[-1].lower()
+            module_path = f"tasks/task_{task_suffix}.py"
+            if not os.path.exists(module_path):
+                with open(module_path, "w", encoding="utf-8") as f_mod:
+                    f_mod.write(f'def run(event):\n    return "✅ {task} 自動建立成功（請自訂功能）"')
+
+            return redirect(url_for("view_registry"))
+
+    return render_template("add_keyword.html")
