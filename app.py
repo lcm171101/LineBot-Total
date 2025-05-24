@@ -1,10 +1,9 @@
-from flask import Flask, request, abort
+from flask import Flask, request, abort, render_template
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import TextSendMessage, MessageEvent, TextMessage, SourceUser, SourceGroup
 from linebot.exceptions import InvalidSignatureError
 import os
 import threading
-from flask import render_template
 import csv
 from datetime import datetime
 from task_logger import write_csv_log
@@ -44,9 +43,7 @@ def handle_message(event):
 
 def handle_custom_task(event, command, immediate=False):
     try:
-        # 任務處理邏輯
         if command == "任務A":
-            from datetime import datetime
             weekday_map = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
             today = datetime.now()
             result = f"✅ 任務A 執行成功：今天是 {weekday_map[today.weekday()]} {today.strftime('%Y-%m-%d')}"
@@ -61,55 +58,14 @@ def handle_custom_task(event, command, immediate=False):
 
         target_id = event.source.user_id if isinstance(event.source, SourceUser) else event.source.group_id
         if not immediate:
-        line_bot_api.push_message(target_id, TextSendMessage(text=result))
+            line_bot_api.push_message(target_id, TextSendMessage(text=result))
+
         write_csv_log(command, event, result)
+        return result
 
     except Exception as e:
         print("❌ 任務處理錯誤：", e)
-
-# 啟動時讀取 CSV 並執行對應任務
-def update_task_status_in_csv(command, source_id, new_status, filename="task_log.csv"):
-    try:
-        updated_rows = []
-        with open(filename, "r", encoding="utf-8") as f:
-            rows = list(csv.reader(f))
-            for row in rows:
-                if len(row) < 5:
-                    updated_rows.append(row)
-                    continue
-                if row[1] == command and row[2] == source_id and row[4] == "" and int(row[5]) < 3:
-                    row[4] = new_status
-                    row[5] = str(int(row[5]) + 1)
-                updated_rows.append(row)
-        with open(filename, "w", encoding="utf-8", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerows(updated_rows)
-    except Exception as e:
-        print("❌ 更新任務狀態錯誤：", e)
-
-def process_pending_tasks_from_csv(filename="task_log.csv"):
-    try:
-        with open(filename, "r", encoding="utf-8") as f:
-            rows = list(csv.reader(f))
-            for row in rows:
-                if len(row) < 5:
-                    continue  # 跳過不完整資料
-                timestamp, command, source_id, source_type, result = row
-                if "✅" in result or "⚠️" in result:
-                    continue  # 已執行過的任務跳過
-
-                # 模擬推播（重推未完成任務）
-                response = f"📌 重啟任務紀錄：{command}，結果：{result}"
-                line_bot_api.push_message(source_id, TextSendMessage(text=response))
-                update_task_status_in_csv(command, source_id, f"🔁 已重推：{result}")
-    except FileNotFoundError:
-        print("📂 尚無任務記錄檔，略過 CSV 讀取")
-    except Exception as e:
-        print("❌ 啟動讀取任務 CSV 發生錯誤：", e)
-
-# 啟動伺服器時處理歷史紀錄（僅第一次）
-threading.Thread(target=process_pending_tasks_from_csv).start()
-
+        return "❌ 任務執行發生錯誤"
 
 @app.route("/tasks", methods=["GET"])
 def view_tasks():
