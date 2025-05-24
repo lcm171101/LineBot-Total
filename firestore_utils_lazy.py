@@ -6,7 +6,7 @@ _db = None
 def get_db():
     global _db
     if _db is None:
-        cred = credentials.Certificate("inxtip-9c27a4f0b1c8.json")
+        cred = credentials.Certificate("inxtip-firebase-adminsdk-fbsvc-8612528009.json")
         firebase_admin.initialize_app(cred)
         _db = firestore.client()
     return _db
