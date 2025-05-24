@@ -4,7 +4,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from linebot.exceptions import InvalidSignatureError
 from firestore_utils_lazy_env import log_task, get_all_keywords
 from datetime import datetime
-import os, traceback
+import os, traceback, importlib
 
 app = Flask(__name__)
 line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
@@ -29,9 +29,9 @@ def handle_message(event):
     try:
         text = event.message.text.strip()
         result = ""
-        
+
         if text.startswith("#"):
-            command = text[1:].strip()  # 例如：#啟動A → 啟動A
+            command = text[1:].strip()
             matched_task = None
             keyword_map = get_all_keywords()
 
@@ -41,7 +41,13 @@ def handle_message(event):
                     break
 
             if matched_task:
-                result = f"✅ 已執行任務 {matched_task}"
+                try:
+                    task_code = matched_task[-1].lower()
+                    module_name = f"tasks.task_{task_code}"
+                    task_module = importlib.import_module(module_name)
+                    result = task_module.run(event)
+                except Exception as e:
+                    result = f"❌ 無法執行 {matched_task}：{str(e)}"
             else:
                 result = f"⚠️ 指令「{command}」尚未支援"
         else:
