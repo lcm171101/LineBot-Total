@@ -2,7 +2,7 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from linebot.exceptions import InvalidSignatureError
-from firestore_utils_lazy import log_task
+from firestore_utils_lazy_env import log_task
 from datetime import datetime
 import os
 
