@@ -1,68 +1,90 @@
-from flask import Flask, request, abort
-from linebot import LineBotApi, WebhookHandler
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
-from linebot.exceptions import InvalidSignatureError
-from firestore_utils_lazy_env import log_task, get_all_keywords
+from flask import Flask, render_template, request, send_file
+from firestore_utils_lazy_env import (
+    get_all_keywords, get_all_descriptions,
+    update_keywords, update_description,
+    delete_keywords, delete_description,
+    export_logs
+)
+import csv, os
 from datetime import datetime
-import os, traceback, importlib
 
 app = Flask(__name__)
-line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
-handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 
-@app.route("/", methods=["GET"])
+@app.route("/")
 def index():
-    return "✅ LINE Bot is running."
+    return render_template("index.html")
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    signature = request.headers.get("X-Line-Signature")
-    body = request.get_data(as_text=True)
-    try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
-    return "OK"
+@app.route("/task_registry")
+def task_registry():
+    keywords = get_all_keywords()
+    descriptions = get_all_descriptions()
+    return render_template("task_registry.html", keywords=keywords, descriptions=descriptions)
 
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    try:
-        text = event.message.text.strip()
-        result = ""
+@app.route("/edit_description", methods=["GET", "POST"])
+def edit_description():
+    keywords = get_all_keywords()
+    descriptions = get_all_descriptions()
+    all_tasks = list(keywords.keys())
+    current_description = ""
 
-        if text.startswith("#"):
-            command = text[1:].strip()
-            matched_task = None
-            keyword_map = get_all_keywords()
+    if request.method == "POST":
+        task = request.form["task_name"]
+        desc = request.form["description"]
+        update_description(task, desc)
+        current_description = desc
+        return render_template("edit_description.html", all_tasks=all_tasks, current_description=desc, message="✅ 任務說明已更新")
+    else:
+        if all_tasks:
+            current_description = descriptions.get(all_tasks[0], "")
+        return render_template("edit_description.html", all_tasks=all_tasks, current_description=current_description)
 
-            for task, keywords in keyword_map.items():
-                if any(k in command for k in keywords):
-                    matched_task = task
-                    break
-
-            if matched_task:
-                try:
-                    task_code = matched_task[-1].lower()
-                    module_name = f"tasks.task_{task_code}"
-                    task_module = importlib.import_module(module_name)
-                    result = task_module.run(event)
-                except Exception as e:
-                    result = f"❌ 無法執行 {matched_task}：{str(e)}"
-            else:
-                result = f"⚠️ 指令「{command}」尚未支援"
+@app.route("/add_keyword", methods=["GET", "POST"])
+def add_keyword():
+    message = ""
+    if request.method == "POST":
+        task = request.form["task_name"]
+        keyword_list = [k.strip() for k in request.form["keywords"].split(",")]
+        update_keywords(task, keyword_list)
+        try:
+            code = f"def run(event):\n    return \"✅ 任務{task[-1]} 執行成功\""
+            os.makedirs("tasks", exist_ok=True)
+            with open(f"tasks/task_{task[-1].lower()}.py", "w", encoding="utf-8") as f:
+                f.write(code)
+        except Exception as e:
+            message = f"任務已新增，但建立模組失敗：{e}"
         else:
-            result = f"✅ 你成功連到我了：{text}"
+            message = "✅ 任務與模組已建立完成"
+    return render_template("add_keyword.html", message=message)
 
-        log_task({
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "command": text,
-            "source_id": getattr(event.source, "user_id", ""),
-            "source_type": "User" if hasattr(event.source, "user_id") else "Group",
-            "result": result
-        })
+@app.route("/manage", methods=["GET", "POST"])
+def manage():
+    keywords = get_all_keywords()
+    descriptions = get_all_descriptions()
+    all_tasks = list(keywords.keys())
 
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=result))
-    except Exception as e:
-        err_msg = f"❌ 發生錯誤：{str(e)}\n{traceback.format_exc(limit=2)}"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=err_msg))
-        raise e
+    if request.method == "POST":
+        task = request.form["task_name"]
+        delete_keywords(task)
+        delete_description(task)
+        return render_template("manage.html", all_tasks=get_all_keywords().keys(), message=f"✅ 已刪除任務 {task}")
+
+    return render_template("manage.html", all_tasks=all_tasks)
+
+@app.route("/export_logs")
+def export_logs():
+    logs = export_logs()
+    filename = f"task_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    with open(filename, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["timestamp", "source_type", "source_id", "command", "result"])
+        writer.writeheader()
+        for row in logs:
+            writer.writerow(row)
+    return send_file(filename, as_attachment=True)
+
+@app.route("/tasks")
+def tasks():
+    logs = export_logs()
+    return render_template("task_table.html", logs=logs)
+
+if __name__ == "__main__":
+    app.run(debug=True)
