@@ -71,20 +71,20 @@ def manage():
     return render_template("manage.html", all_tasks=all_tasks)
 
 @app.route("/export_logs")
-def export_logs():
-    logs = export_logs()
+def export_logs_csv():
+    logs_data = export_logs()
     filename = f"task_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     with open(filename, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["timestamp", "source_type", "source_id", "command", "result"])
         writer.writeheader()
-        for row in logs:
+        for row in logs_data:
             writer.writerow(row)
     return send_file(filename, as_attachment=True)
 
 @app.route("/tasks")
 def tasks():
-    logs = export_logs()
-    return render_template("task_table.html", logs=logs)
+    logs_data = export_logs()
+    return render_template("task_table.html", logs=logs_data)
 
 if __name__ == "__main__":
     app.run(debug=True)
