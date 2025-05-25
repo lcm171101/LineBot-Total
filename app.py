@@ -40,7 +40,7 @@ def handle_message(event):
             "source_id": source_id,
             "source_type": source_type,
             "original_text": text
-        }, timeout=10)
+        }, timeout=30)
         result = resp.json().get("result", "❌ 專案B未回傳結果")
     except Exception as e:
         result = f"❌ 呼叫任務API失敗：{e}"
