@@ -10,8 +10,14 @@ app.secret_key = "supersecret"
 
 # === 初始化 Firebase ===
 if not firebase_admin._apps:
-    cred = credentials.Certificate("firebase_key.json")
-    firebase_admin.initialize_app(cred)
+    import base64
+from io import StringIO
+import json
+
+firebase_b64 = os.environ.get("FIREBASE_KEY_B64")
+firebase_json = base64.b64decode(firebase_b64).decode("utf-8")
+cred = credentials.Certificate(json.load(StringIO(firebase_json)))
+firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # === 登入檢查 ===
