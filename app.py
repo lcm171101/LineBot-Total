@@ -172,3 +172,42 @@ def admin():
 def delete_user(uid):
     db.collection("line_sources").document(uid).delete()
     return redirect(url_for("admin"))
+@app.route("/push-test", methods=["GET", "POST"])
+@require_login
+def push_test():
+    message = ""
+    if request.method == "POST":
+        to = request.form.get("to")
+        msg_type = request.form.get("type")
+        content = request.form.get("content")
+
+        import json
+        from flask import Response
+
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({"to": to, "type": msg_type, "content": content})
+        try:
+            resp = requests.post(url_for("push", _external=True), data=data, headers=headers)
+            result = resp.json()
+            message = str(result)
+        except Exception as e:
+            message = f"錯誤: {str(e)}"
+
+    return render_template_string("""
+    <h2>推播測試工具</h2>
+    <form method="post">
+        推播對象：<input name="to" placeholder="user_id / group_id / all_users / all_groups"><br>
+        類型：
+        <select name="type">
+            <option value="text">文字</option>
+            <option value="image">圖片</option>
+        </select><br>
+        內容：<input name="content" placeholder="文字內容或圖片 URL"><br>
+        <button type="submit">推播</button>
+    </form>
+    {% if message %}
+    <h3>結果</h3>
+    <pre style="background:#eef;padding:10px;border:1px solid #ccc">{{ message }}</pre>
+    {% endif %}
+    <a href="/admin">回管理頁</a>
+    """, message=message)
