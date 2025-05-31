@@ -229,3 +229,43 @@ def push_test():
     {% endif %}
     <a href="/admin">回管理頁</a>
     """, message=message)
+
+from flask import abort
+from linebot import LineBotApi, WebhookHandler
+from linebot.models import FollowEvent, JoinEvent
+from linebot.exceptions import InvalidSignatureError
+
+line_bot_api = LineBotApi(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
+handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
+
+@app.route("/callback", methods=["POST"])
+def callback():
+    signature = request.headers.get("X-Line-Signature", "")
+    body = request.get_data(as_text=True)
+
+    try:
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
+
+    return "OK"
+
+@handler.add(FollowEvent)
+def handle_follow(event):
+    user_id = event.source.user_id
+    from datetime import datetime
+    db.collection("line_sources").document(user_id).set({
+        "type": "user",
+        "blocked": False,
+        "updated_at": datetime.now()
+    })
+
+@handler.add(JoinEvent)
+def handle_join(event):
+    group_id = event.source.group_id
+    from datetime import datetime
+    db.collection("line_sources").document(group_id).set({
+        "type": "group",
+        "blocked": False,
+        "updated_at": datetime.now()
+    })
