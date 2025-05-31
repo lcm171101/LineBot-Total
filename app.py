@@ -80,6 +80,12 @@ if __name__ == "__main__":
 
 @app.route("/push", methods=["POST"])
 def push():
+    # === API KEY 驗證 ===
+    expected_key = os.environ.get("PUSH_API_KEY")
+    client_key = request.headers.get("X-API-KEY")
+    if not expected_key or client_key != expected_key:
+        return jsonify({"error": "Unauthorized"}), 401
+
     from linebot import LineBotApi
     from linebot.models import TextSendMessage, ImageSendMessage
     import datetime
