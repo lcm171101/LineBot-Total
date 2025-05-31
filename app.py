@@ -142,7 +142,7 @@ def push():
         "to": to,
         "type": msg_type,
         "content": content,
-        "timestamp": datetime.now(pytz.timezone("Asia/Taipei"))
+        "timestamp": datetime.datetime.now(pytz.timezone("Asia/Taipei"))
     })
 
     return jsonify({"result": results})
