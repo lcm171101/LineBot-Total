@@ -4,10 +4,6 @@ from firebase_admin import credentials, firestore
 import os
 import pytz
 import requests
-from linebot import WebhookHandler
-from linebot.exceptions import InvalidSignatureError
-from linebot.models import FollowEvent, JoinEvent
-
 
 # === 初始化 Flask App ===
 app = Flask(__name__)
@@ -354,3 +350,8 @@ def handle_join(event):
 def webhook_compat():
     from flask import redirect
     return redirect("/callback", code=307)
+
+
+@app.route("/", methods=["GET"])
+def health_check():
+    return "我還活著"
