@@ -1,84 +1,97 @@
-# 專案 A：LINE Bot Proxy（任務轉接機器人）
+# LINE 推播管理系統
 
-本專案負責接收 LINE 使用者訊息，將任務指令轉發給任務 API 中心（專案 B），並將處理結果回覆給 LINE 使用者。
-
----
-
-## 🧠 功能簡介
-
-- ✅ 接收 LINE webhook 訊息
-- ✅ 偵測以 `#` 開頭的任務指令（例如 `#任務B`）
-- ✅ 呼叫專案 B 的 `/api/execute_task` API
-- ✅ 回傳執行結果給 LINE 使用者
+本系統為一個使用 Flask + Firebase Firestore 架構的 LINE 推播管理平台，提供後台登入、使用者管理、推播測試及日誌查詢等功能。
 
 ---
 
-## 📁 專案結構
+## 🔐 登入與驗證
 
+- **登入頁 `/login`**
+  - 使用固定帳號密碼（`lcm171101 / Mm60108511`）登入。
+- **登出 `/logout`**
+  - 清除 session。
+- **權限保護**
+  - 所有管理功能需登入（使用 `@require_login` 保護）。
+
+---
+
+## 👥 使用者/群組管理 `/admin`
+
+- 顯示已儲存的 LINE user/group ID。
+- 每筆資料包含：
+  - ID
+  - 類型（user/group）
+  - 封鎖狀態（✅/❌）
+  - 更新時間
+- 操作功能：
+  - ➕ 手動新增 ID（選擇 user/group）
+  - 🔒 封鎖 ID（`/block/<uid>`）
+  - 🔓 解鎖 ID（`/unblock/<uid>`）
+  - ❌ 刪除 ID（`/delete/<uid>`）
+
+---
+
+## 📤 推播測試 `/push-test`
+
+- 可推播至：
+  - 單一 `user_id` 或 `group_id`
+  - `all_users`
+  - `all_groups`
+- 推播訊息類型：
+  - `text`：文字訊息
+  - `image`：圖片 URL
+- 顯示推播結果（成功 ✅ / 失敗 ❌）
+
+---
+
+## 🔧 實際推播 API `/push`
+
+- 使用 `LINE_CHANNEL_ACCESS_TOKEN` 傳送訊息。
+- 判斷是否封鎖，決定是否推播。
+- 支援格式：
+  - `TextSendMessage`
+  - `ImageSendMessage`
+
+---
+
+## 📝 推播日誌 `/logs`
+
+- 顯示最近 100 筆推播紀錄（`push_log.txt`）
+- 格式範例：
+  ```
+  [2025-05-31 00:55:37] TO: Uxxxxxxxx TYPE: text CONTENT: Hello world
+  ```
+
+---
+
+## 🧱 Firestore 結構（collection: `line_sources`）
+
+| 欄位       | 說明             |
+|------------|------------------|
+| `type`     | "user" 或 "group" |
+| `blocked`  | 是否封鎖 (bool)   |
+| `updated_at` | 更新時間 (timestamp) |
+
+---
+
+## 📦 套件需求 `requirements.txt`
+
+```txt
+flask
+firebase-admin
+gunicorn
+requests
+line-bot-sdk==2.4.1
 ```
-專案資料夾/
-├── app.py               # 主程式
-├── requirements.txt     # 套件需求清單
+
+---
+
+## 📁 啟動方式
+
+```bash
+python app.py
+# 或部署到 Render 並設置環境變數：
+# FIREBASE_KEY_B64 / LINE_CHANNEL_ACCESS_TOKEN
 ```
 
 ---
-
-## 🔑 環境變數設定（Render）
-
-| 變數名稱 | 說明 |
-|----------|------|
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Bot Access Token |
-| `LINE_CHANNEL_SECRET`       | Channel Secret |
-| `TASK_API_URL`              | 專案 B 任務 API 的網址（例如 https://task-api.onrender.com/api/execute_task） |
-
----
-
-## 🌐 路由說明
-
-| 路徑 | 方法 | 說明 |
-|------|------|------|
-| `/` | GET | 健康檢查（顯示 Bot 運作中） |
-| `/webhook` | POST | 接收來自 LINE 的訊息並處理任務指令 |
-
----
-
-## 🔁 呼叫流程
-
-1. LINE 使用者傳送 `#任務B`
-2. 本專案組成 POST 請求如下：
-
-```json
-POST {TASK_API_URL}
-{
-  "task": "任務B",
-  "source_id": "Uxxxxxxxx",
-  "source_type": "user",
-  "original_text": "#任務B"
-}
-```
-
-3. 將回傳的 `result` 欄位文字回覆給使用者
-
----
-
-## ✅ 依賴套件
-
-- `flask`
-- `line-bot-sdk`
-- `requests`
-- `gunicorn`
-
----
-
-## 📌 注意事項
-
-- 請確保已將 `/webhook` 登記至 LINE Developers
-- 請設定 `TASK_API_URL` 指向你的任務 API 中心（專案 B）
-
----
-
-## 🔧 待擴充功能（可選）
-
-- [ ] API Token 簽章驗證
-- [ ] 群組權限控制
-- [ ] 記錄任務執行歷程
