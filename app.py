@@ -150,10 +150,30 @@ def push_test():
         <input type="text" name="content" style="width: 400px"><br>
         <button type="submit">推播</button>
     </form>
+    
+    
     {% if result %}
-    <h3>推播結果</h3>
-    <pre>{{ result }}</pre>
+        {% if result.error %}
+            <h3 style="color:red;">❌ 發生錯誤：{{ result.error }}</h3>
+        {% else %}
+            <h3 style="color:green;">✅ 推播完成</h3>
+            <ul>
+            {% for k, v in result.result.items() %}
+                <li>
+                    <strong>{{ k }}</strong>：
+                    {% if v == true %}
+                        成功
+                    {% else %}
+                        <span style="color:red">錯誤：{{ v }}</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+            </ul>
+        {% endif %}
     {% endif %}
+
+    {% endif %}
+
     <br><a href="/admin">回管理頁</a>
     """, result=result)
 
