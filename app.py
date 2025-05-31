@@ -39,105 +39,6 @@ def login():
         else:
             return "登入失敗"
     return render_template_string("""
-        <form method="post">
-            <h2>登入管理系統</h2>
-            使用者名稱：<input type="text" name="username"><br>
-            密碼：<input type="password" name="password"><br>
-            <button type="submit">登入</button>
-        </form>
-    """)
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
-# === 用戶列表畫面 ===
-@app.route("/admin")
-@require_login
-def admin():
-    docs = db.collection("line_sources").stream()
-    users = [
-        {
-            "id": doc.id,
-            "type": doc.to_dict().get("type"),
-            "blocked": doc.to_dict().get("blocked", False),
-            "updated_at": doc.to_dict().get("updated_at")
-        }
-        for doc in docs
-    ]
-    return render_template_string("""
-    <h2>LINE 使用者/群組管理</h2>
-    <form method="post" action="/create-id">
-        <strong>手動建立 ID：</strong><br>
-        ID：<input name="id"> 類型：
-        <select name="type">
-            <option value="user">user</option>
-            <option value="group">group</option>
-        </select>
-        <button type="submit">新增</button>
-    </form><br>
-    <table border=1 cellpadding=8>
-        <tr><th>ID</th><th>類型</th><th>更新時間</th><th>封鎖狀態</th><th>操作</th></tr>
-        {% for u in users %}
-        <tr>
-            <td>{{ u.id }}</td>
-            <td>{{ u.type }}</td>
-            <td>{{ u.updated_at }}</td>
-            <td>{{ '✅' if u.blocked else '❌' }}</td>
-            <td>
-                {% if not u.blocked %}
-                <a href="{{ url_for('block_user', uid=u.id) }}">封鎖</a>
-                {% else %}
-                <a href="{{ url_for('unblock_user', uid=u.id) }}">解鎖</a>
-                {% endif %} |
-                <a href="{{ url_for('delete_id', uid=u.id) }}" onclick="return confirm('確定要刪除這個 ID 嗎？');">刪除</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
-    <br><a href="/logs">查看推播日誌</a> | <a href="/logout">登出</a>
-    <br><a href="/push-test">前往推播測試</a>
-    """, users=users)
-
-@app.route("/create-id", methods=["POST"])
-@require_login
-def create_id():
-    uid = request.form.get("id")
-    utype = request.form.get("type")
-    if uid and utype in ["user", "group"]:
-        db.collection("line_sources").document(uid).set({
-            "type": utype,
-            "blocked": False
-        }, merge=True)
-    return redirect(url_for("admin"))
-
-@app.route("/delete/<uid>")
-@require_login
-def delete_id(uid):
-    db.collection("line_sources").document(uid).delete()
-    return redirect(url_for("admin"))
-
-@app.route("/push-test", methods=["GET", "POST"])
-@require_login
-def push_test():
-    result = None
-    if request.method == "POST":
-        to = request.form.get("to")
-        msg_type = request.form.get("type")
-        content = request.form.get("content")
-        try:
-            server_url = request.host_url.rstrip("/")
-            resp = requests.post(f"{server_url}/push", json={
-                "to": to,
-                "type": msg_type,
-                "content": content
-            })
-            result = resp.json()
-        except Exception as e:
-            result = {"error": str(e)}
-
-    return render_template_string("""
     <h2>推播測試</h2>
     <form method="post">
         推播對象 (user_id / group_id / all_users / all_groups):<br>
@@ -150,8 +51,7 @@ def push_test():
         <input type="text" name="content" style="width: 400px"><br>
         <button type="submit">推播</button>
     </form>
-    
-    
+
     {% if result %}
         {% if result.error %}
             <h3 style="color:red;">❌ 發生錯誤：{{ result.error }}</h3>
@@ -172,10 +72,8 @@ def push_test():
         {% endif %}
     {% endif %}
 
-    {% endif %}
-
     <br><a href="/admin">回管理頁</a>
-    """, result=result)
+""", result=result)
 
 @app.route("/block/<uid>")
 @require_login
