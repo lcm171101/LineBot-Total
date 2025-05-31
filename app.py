@@ -14,6 +14,7 @@ if not firebase_admin._apps:
     import base64
 from io import StringIO
 import json
+from linebot.webhook import WebhookHandler
 
 firebase_b64 = os.environ.get("FIREBASE_KEY_B64")
 firebase_json = base64.b64decode(firebase_b64).decode("utf-8")
