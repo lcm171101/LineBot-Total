@@ -269,3 +269,8 @@ def handle_join(event):
         "blocked": False,
         "updated_at": datetime.now()
     })
+
+@app.route("/webhook", methods=["POST"])
+def webhook_compat():
+    from flask import redirect
+    return redirect("/callback", code=307)
