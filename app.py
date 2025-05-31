@@ -224,7 +224,7 @@ def push_test():
         content = request.form.get("content")
 
         from flask import json
-        with app.test_request_context("/push", method="POST", json={"to": to, "type": msg_type, "content": content}):
+        with app.test_request_context("/push", method="POST", json={"to": to, "type": msg_type, "content": content}, headers={"X-API-KEY": os.environ.get("PUSH_API_KEY")}):
             resp = push()
             result = resp[0].get_json() if isinstance(resp, tuple) else resp.get_json()
             message = json.dumps(result, ensure_ascii=False, indent=2)
