@@ -75,12 +75,15 @@ def logs():
         ]
     except Exception as e:
         lines = [f"發生錯誤：{e}"]
-    return render_template_string("""
-    <h2>推播日誌</h2>
-    <pre style="background:#f4f4f4;padding:10px;border:1px solid #ccc">{{ log }}</pre>
-    <a href="/admin">回管理頁</a>
-    """, log="
-".join(lines))
+
+    return render_template_string(
+        """
+        <h2>推播日誌</h2>
+        <pre style="background:#f4f4f4;padding:10px;border:1px solid #ccc">{{ log }}</pre>
+        <a href="/admin">回管理頁</a>
+        """, log="
+".join(lines)
+    )
 
 
 if __name__ == "__main__":
