@@ -3,3 +3,4 @@ firebase-admin
 gunicorn
 requests
 line-bot-sdk==2.4.1
+pytz
