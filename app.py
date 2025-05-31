@@ -33,219 +33,24 @@ def require_login(f):
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == "POST":
-        if request.form.get("username") == "lcm171101" and request.form.get("password") == "Mm60108511":
-            session["logged_in"] = True
-            return redirect(url_for("admin"))
-        else:
-            return "登入失敗"
-    return render_template_string("""
-        <form method="post">
-            <h2>登入管理系統</h2>
-            使用者名稱：<input type="text" name="username"><br>
-            密碼：<input type="password" name="password"><br>
-            <button type="submit">登入</button>
-        </form>
-    """)
+    
+if request.method == "POST":
+    to = request.form.get("to")
+    msg_type = request.form.get("type")
 
-@app.route("/block/<uid>")
-@require_login
-def block_user(uid):
-    db.collection("line_sources").document(uid).update({"blocked": True})
-    return redirect(url_for("admin"))
-
-@app.route("/unblock/<uid>")
-@require_login
-def unblock_user(uid):
-    db.collection("line_sources").document(uid).update({"blocked": False})
-    return redirect(url_for("admin"))
-
-
-@app.route("/logs")
-@require_login
-def logs():
-    try:
-        docs = db.collection("push_logs")             .order_by("timestamp", direction=firestore.Query.DESCENDING)             .limit(100).stream()
-        lines = [
-            f"[{doc.to_dict()['timestamp'].astimezone(pytz.timezone('Asia/Taipei')).strftime('%Y-%m-%d %H:%M:%S')}] "
-            f"TO: {doc.to_dict().get('to')} TYPE: {doc.to_dict().get('type')} CONTENT: {doc.to_dict().get('content')}"
-            for doc in docs
-        ]
-    except Exception as e:
-        lines = [f"發生錯誤：{e}"]
-
-    return render_template_string("""
-<h2>推播日誌</h2>
-<pre style="background:#f4f4f4;padding:10px;border:1px solid #ccc">{{ log }}</pre>
-<a href="/admin">回管理頁</a>
-""", log="\n".join(lines))
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
-
-@app.route("/push", methods=["POST"])
-def push():
-    # === API KEY 驗證 ===
-    expected_key = os.environ.get("PUSH_API_KEY")
-    client_key = request.headers.get("X-API-KEY")
-    if not expected_key or client_key != expected_key:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    from linebot import LineBotApi
-    from linebot.models import TextSendMessage, ImageSendMessage
-    import datetime
-
-    channel_access_token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
-    if not channel_access_token:
-        return jsonify({"error": "LINE_CHANNEL_ACCESS_TOKEN not set"}), 500
-
-    line_bot_api = LineBotApi(channel_access_token)
-
-    data = request.get_json()
-    to = data.get("to")
-    msg_type = data.get("type")
-    content = data.get("content")
-
-    def send_message(to_id):
-        try:
-            if msg_type == "text":
-                line_bot_api.push_message(to_id, TextSendMessage(text=content))
-            elif msg_type == "image":
-                line_bot_api.push_message(to_id, ImageSendMessage(original_content_url=content, preview_image_url=content))
-            elif msg_type == "image_link":
-                from linebot.models import FlexSendMessage
-                image_url = content.get("image")
-                link_url = content.get("link")
-                bubble = {
-                    "type": "bubble",
-                    "hero": {
-                        "type": "image",
-                        "url": image_url,
-                        "size": "full",
-                        "aspectRatio": "20:13",
-                        "aspectMode": "cover"
-                    }
-                }
-                if link_url:
-                    bubble["hero"]["action"] = {
-                        "type": "uri",
-                        "uri": link_url
-                    }
-                line_bot_api.push_message(to_id, FlexSendMessage(alt_text="圖片訊息", contents=bubble))
-            return True
-        except Exception as e:
-            return str(e)
-
-    results = {}
-    now = datetime.datetime.now(pytz.timezone("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")
-
-    if to in ["all_users", "all_groups"]:
-        docs = db.collection("line_sources").stream()
-        for doc in docs:
-            doc_data = doc.to_dict()
-            if doc_data.get("blocked", False):
-                continue
-            if (to == "all_users" and doc_data.get("type") == "user") or (to == "all_groups" and doc_data.get("type") == "group"):
-                r = send_message(doc.id)
-                results[doc.id] = r
+    if msg_type == "image_link":
+        content = {
+            "image": request.form.get("image_url"),
+            "link": request.form.get("link_url")
+        }
     else:
-        doc = db.collection("line_sources").document(to).get()
-        if doc.exists and not doc.to_dict().get("blocked", False):
-            r = send_message(to)
-            results[to] = r
-        else:
-            results[to] = "Not found or blocked"
-
-    db.collection("push_logs").add({
-        "to": to,
-        "type": msg_type,
-        "raw": content,
-        "content": content,
-        "timestamp": datetime.datetime.now(pytz.timezone("Asia/Taipei"))
-    })
-
-    return jsonify({"result": results})
-@app.route("/admin", methods=["GET", "POST"])
-@require_login
-def admin():
-    message = ""
-    if request.method == "POST":
-        new_id = request.form.get("new_id")
-        new_type = request.form.get("new_type")
-        from datetime import datetime
-        db.collection("line_sources").document(new_id).set({
-            "type": new_type,
-            "blocked": False,
-            "updated_at": datetime.now(pytz.timezone("Asia/Taipei"))
-        })
-        message = f"已新增：{new_id}"
-
-    docs = db.collection("line_sources").stream()
-    data = []
-    for doc in docs:
-        item = doc.to_dict()
-        data.append({
-            "id": doc.id,
-            "type": item.get("type", "N/A"),
-            "blocked": item.get("blocked", False),
-            "updated_at": item.get("updated_at", "")
-        })
-
-    return render_template_string("""
-    <h2>使用者/群組管理</h2>
-    <form method="post">
-        ➕ 新增 ID：
-        <input name="new_id" placeholder="輸入 user_id 或 group_id">
-        <select name="new_type">
-            <option value="user">user</option>
-            <option value="group">group</option>
-        </select>
-        <button type="submit">新增</button>
-    </form>
-    {% if message %}
-    <p style="color:green">{{ message }}</p>
-    {% endif %}
-    <table border='1' cellpadding='5'>
-        <tr>
-            <th>ID</th><th>類型</th><th>封鎖</th><th>操作</th><th>更新時間</th>
-        </tr>
-        {% for d in data %}
-        <tr>
-            <td>{{ d.id }}</td>
-            <td>{{ d.type }}</td>
-            <td>{{ "✅" if not d.blocked else "❌" }}</td>
-            <td>
-                {% if d.blocked %}
-                    <a href='/unblock/{{ d.id }}'>🔓 解鎖</a>
-                {% else %}
-                    <a href='/block/{{ d.id }}'>🔒 封鎖</a>
-                {% endif %}
-                | <a href='/delete/{{ d.id }}'>❌ 刪除</a>
-            </td>
-            <td>{{ d.updated_at }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <a href="/push-test">前往推播測試</a> | <a href="/logs">查看日誌</a> | <a href="/logout">登出</a>
-    """, data=data, message=message)
-@app.route("/delete/<uid>")
-@require_login
-def delete_user(uid):
-    db.collection("line_sources").document(uid).delete()
-    return redirect(url_for("admin"))
-@app.route("/push-test", methods=["GET", "POST"])
-@require_login
-def push_test():
-    message = ""
-    if request.method == "POST":
-        to = request.form.get("to")
-        msg_type = request.form.get("type")
         content = request.form.get("content")
 
-        from flask import json
-        with app.test_request_context("/push", method="POST", json={"to": to, "type": msg_type, "content": content}, headers={"X-API-KEY": os.environ.get("PUSH_API_KEY")}):
+    from flask import json
+    with app.test_request_context("/push", method="POST",
+                                  json={"to": to, "type": msg_type, "content": content},
+                                  headers={"X-API-KEY": os.environ.get("PUSH_API_KEY")}):
+("/push", method="POST", json={"to": to, "type": msg_type, "content": content}, headers={"X-API-KEY": os.environ.get("PUSH_API_KEY")}):
             resp = push()
             result = resp[0].get_json() if isinstance(resp, tuple) else resp.get_json()
             message = json.dumps(result, ensure_ascii=False, indent=2)
