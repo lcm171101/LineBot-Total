@@ -349,4 +349,8 @@ def handle_join(event):
 @app.route("/webhook", methods=["POST"])
 def webhook_compat():
     from flask import redirect
+from linebot import WebhookHandler
+from linebot.exceptions import InvalidSignatureError
+from linebot.models import FollowEvent, JoinEvent
+
     return redirect("/callback", code=307)
