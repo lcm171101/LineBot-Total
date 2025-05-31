@@ -2,6 +2,7 @@ from flask import Flask, render_template_string, request, redirect, url_for, ses
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
+import pytz
 import requests
 
 # === 初始化 Flask App ===
@@ -105,7 +106,7 @@ def push():
             return str(e)
 
     results = {}
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.datetime.now(pytz.timezone("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")
 
     if to in ["all_users", "all_groups"]:
         docs = db.collection("line_sources").stream()
@@ -139,7 +140,7 @@ def admin():
         db.collection("line_sources").document(new_id).set({
             "type": new_type,
             "blocked": False,
-            "updated_at": datetime.now()
+            "updated_at": datetime.now(pytz.timezone("Asia/Taipei"))
         })
         message = f"已新增：{new_id}"
 
@@ -258,7 +259,7 @@ def handle_follow(event):
     db.collection("line_sources").document(user_id).set({
         "type": "user",
         "blocked": False,
-        "updated_at": datetime.now()
+        "updated_at": datetime.now(pytz.timezone("Asia/Taipei"))
     })
 
 @handler.add(JoinEvent)
@@ -268,7 +269,7 @@ def handle_join(event):
     db.collection("line_sources").document(group_id).set({
         "type": "group",
         "blocked": False,
-        "updated_at": datetime.now()
+        "updated_at": datetime.now(pytz.timezone("Asia/Taipei"))
     })
 
 @app.route("/webhook", methods=["POST"])
