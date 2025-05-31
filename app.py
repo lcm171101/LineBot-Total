@@ -39,41 +39,13 @@ def login():
         else:
             return "登入失敗"
     return render_template_string("""
-    <h2>推播測試</h2>
-    <form method="post">
-        推播對象 (user_id / group_id / all_users / all_groups):<br>
-        <input type="text" name="to"><br>
-        訊息類型：<select name="type">
-            <option value="text">文字</option>
-            <option value="image">圖片</option>
-        </select><br>
-        內容（文字或圖片網址）：<br>
-        <input type="text" name="content" style="width: 400px"><br>
-        <button type="submit">推播</button>
-    </form>
-
-    {% if result %}
-        {% if result.error %}
-            <h3 style="color:red;">❌ 發生錯誤：{{ result.error }}</h3>
-        {% else %}
-            <h3 style="color:green;">✅ 推播完成</h3>
-            <ul>
-            {% for k, v in result.result.items() %}
-                <li>
-                    <strong>{{ k }}</strong>：
-                    {% if v == true %}
-                        成功
-                    {% else %}
-                        <span style="color:red">錯誤：{{ v }}</span>
-                    {% endif %}
-                </li>
-            {% endfor %}
-            </ul>
-        {% endif %}
-    {% endif %}
-
-    <br><a href="/admin">回管理頁</a>
-""", result=result)
+        <form method="post">
+            <h2>登入管理系統</h2>
+            使用者名稱：<input type="text" name="username"><br>
+            密碼：<input type="password" name="password"><br>
+            <button type="submit">登入</button>
+        </form>
+    """)
 
 @app.route("/block/<uid>")
 @require_login
