@@ -128,9 +128,21 @@ def push():
         f.write(f"[{now}] TO: {to} TYPE: {msg_type} CONTENT: {content}\n")
 
     return jsonify({"result": results})
-@app.route("/admin")
+@app.route("/admin", methods=["GET", "POST"])
 @require_login
 def admin():
+    message = ""
+    if request.method == "POST":
+        new_id = request.form.get("new_id")
+        new_type = request.form.get("new_type")
+        from datetime import datetime
+        db.collection("line_sources").document(new_id).set({
+            "type": new_type,
+            "blocked": False,
+            "updated_at": datetime.now()
+        })
+        message = f"已新增：{new_id}"
+
     docs = db.collection("line_sources").stream()
     data = []
     for doc in docs:
@@ -144,7 +156,18 @@ def admin():
 
     return render_template_string("""
     <h2>使用者/群組管理</h2>
-    <a href='/logout'>登出</a> | <a href='/logs'>查看日誌</a>
+    <form method="post">
+        ➕ 新增 ID：
+        <input name="new_id" placeholder="輸入 user_id 或 group_id">
+        <select name="new_type">
+            <option value="user">user</option>
+            <option value="group">group</option>
+        </select>
+        <button type="submit">新增</button>
+    </form>
+    {% if message %}
+    <p style="color:green">{{ message }}</p>
+    {% endif %}
     <table border='1' cellpadding='5'>
         <tr>
             <th>ID</th><th>類型</th><th>封鎖</th><th>操作</th><th>更新時間</th>
@@ -156,17 +179,18 @@ def admin():
             <td>{{ "✅" if not d.blocked else "❌" }}</td>
             <td>
                 {% if d.blocked %}
-                    <a href='/unblock/{{ d.id }}'>解鎖</a>
+                    <a href='/unblock/{{ d.id }}'>🔓 解鎖</a>
                 {% else %}
-                    <a href='/block/{{ d.id }}'>封鎖</a>
+                    <a href='/block/{{ d.id }}'>🔒 封鎖</a>
                 {% endif %}
-                | <a href='/delete/{{ d.id }}'>刪除</a>
+                | <a href='/delete/{{ d.id }}'>❌ 刪除</a>
             </td>
             <td>{{ d.updated_at }}</td>
         </tr>
         {% endfor %}
     </table>
-    """, data=data)
+    <a href="/push-test">前往推播測試</a> | <a href="/logs">查看日誌</a> | <a href="/logout">登出</a>
+    """, data=data, message=message)
 @app.route("/delete/<uid>")
 @require_login
 def delete_user(uid):
