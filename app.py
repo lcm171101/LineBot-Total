@@ -242,6 +242,7 @@ handler = WebhookHandler(os.environ.get("LINE_CHANNEL_SECRET"))
 def callback():
     signature = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
+    print("[Webhook] Payload received:\n", body)
 
     try:
         handler.handle(body, signature)
