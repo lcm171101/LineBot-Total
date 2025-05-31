@@ -64,8 +64,8 @@ def unblock_user(uid):
 @require_login
 def logs():
     try:
-        with open("push_log.txt", "r", encoding="utf-8") as f:
-            lines = f.readlines()[-100:]
+        docs = db.collection("push_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(100).stream()
+            lines = [f"[{doc.to_dict()['timestamp'].astimezone(pytz.timezone('Asia/Taipei')).strftime('%Y-%m-%d %H:%M:%S')}] TO: {doc.to_dict().get('to')} TYPE: {doc.to_dict().get('type')} CONTENT: {doc.to_dict().get('content')}" for doc in docs]
     except FileNotFoundError:
         lines = ["尚未產生日誌。"]
     return render_template_string("""
@@ -131,8 +131,12 @@ def push():
         else:
             results[to] = "Not found or blocked"
 
-    with open("push_log.txt", "a", encoding="utf-8") as f:
-        f.write(f"[{now}] TO: {to} TYPE: {msg_type} CONTENT: {content}\n")
+    db.collection("push_logs").add({
+        "to": to,
+        "type": msg_type,
+        "content": content,
+        "timestamp": datetime.now(pytz.timezone("Asia/Taipei"))
+    })
 
     return jsonify({"result": results})
 @app.route("/admin", methods=["GET", "POST"])
