@@ -60,19 +60,28 @@ def unblock_user(uid):
     db.collection("line_sources").document(uid).update({"blocked": False})
     return redirect(url_for("admin"))
 
+
 @app.route("/logs")
 @require_login
 def logs():
     try:
-        docs = db.collection("push_logs").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(100).stream()
-            lines = [f"[{doc.to_dict()['timestamp'].astimezone(pytz.timezone('Asia/Taipei')).strftime('%Y-%m-%d %H:%M:%S')}] TO: {doc.to_dict().get('to')} TYPE: {doc.to_dict().get('type')} CONTENT: {doc.to_dict().get('content')}" for doc in docs]
-    except FileNotFoundError:
-        lines = ["尚未產生日誌。"]
+        docs = db.collection("push_logs") \
+            .order_by("timestamp", direction=firestore.Query.DESCENDING) \
+            .limit(100).stream()
+        lines = [
+            f"[{doc.to_dict()['timestamp'].astimezone(pytz.timezone('Asia/Taipei')).strftime('%Y-%m-%d %H:%M:%S')}] "
+            f"TO: {doc.to_dict().get('to')} TYPE: {doc.to_dict().get('type')} CONTENT: {doc.to_dict().get('content')}"
+            for doc in docs
+        ]
+    except Exception as e:
+        lines = [f"發生錯誤：{e}"]
     return render_template_string("""
     <h2>推播日誌</h2>
     <pre style="background:#f4f4f4;padding:10px;border:1px solid #ccc">{{ log }}</pre>
     <a href="/admin">回管理頁</a>
-    """, log="".join(lines))
+    """, log="
+".join(lines))
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
