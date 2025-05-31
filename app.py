@@ -127,7 +127,8 @@ def push_test():
         msg_type = request.form.get("type")
         content = request.form.get("content")
         try:
-            resp = requests.post("/push", json={
+            server_url = request.host_url.rstrip("/")
+            resp = requests.post(f"{server_url}/push", json={
                 "to": to,
                 "type": msg_type,
                 "content": content
@@ -185,3 +186,55 @@ def logs():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
+@app.route("/push", methods=["POST"])
+def push():
+    from linebot import LineBotApi
+    from linebot.models import TextSendMessage, ImageSendMessage
+    import datetime
+
+    channel_access_token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
+    if not channel_access_token:
+        return jsonify({"error": "LINE_CHANNEL_ACCESS_TOKEN not set"}), 500
+
+    line_bot_api = LineBotApi(channel_access_token)
+
+    data = request.get_json()
+    to = data.get("to")
+    msg_type = data.get("type")
+    content = data.get("content")
+
+    def send_message(to_id):
+        try:
+            if msg_type == "text":
+                line_bot_api.push_message(to_id, TextSendMessage(text=content))
+            elif msg_type == "image":
+                line_bot_api.push_message(to_id, ImageSendMessage(original_content_url=content, preview_image_url=content))
+            return True
+        except Exception as e:
+            return str(e)
+
+    results = {}
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if to in ["all_users", "all_groups"]:
+        docs = db.collection("line_sources").stream()
+        for doc in docs:
+            doc_data = doc.to_dict()
+            if doc_data.get("blocked", False):
+                continue
+            if (to == "all_users" and doc_data.get("type") == "user") or (to == "all_groups" and doc_data.get("type") == "group"):
+                r = send_message(doc.id)
+                results[doc.id] = r
+    else:
+        doc = db.collection("line_sources").document(to).get()
+        if doc.exists and not doc.to_dict().get("blocked", False):
+            r = send_message(to)
+            results[to] = r
+        else:
+            results[to] = "Not found or blocked"
+
+    with open("push_log.txt", "a", encoding="utf-8") as f:
+        f.write(f"[{now}] TO: {to} TYPE: {msg_type} CONTENT: {content}\n")
+
+    return jsonify({"result": results})
