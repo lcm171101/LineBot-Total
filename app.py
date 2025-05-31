@@ -61,7 +61,6 @@ def unblock_user(uid):
     return redirect(url_for("admin"))
 
 
-
 @app.route("/logs")
 @require_login
 def logs():
@@ -77,11 +76,9 @@ def logs():
 
     return render_template_string("""
 <h2>推播日誌</h2>
-<pre>{{ log }}</pre>
+<pre style="background:#f4f4f4;padding:10px;border:1px solid #ccc">{{ log }}</pre>
 <a href="/admin">回管理頁</a>
-""", log="
-".join(lines))
-
+""", log="\n".join(lines))
 
 
 if __name__ == "__main__":
