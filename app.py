@@ -128,3 +128,47 @@ def push():
         f.write(f"[{now}] TO: {to} TYPE: {msg_type} CONTENT: {content}\n")
 
     return jsonify({"result": results})
+@app.route("/admin")
+@require_login
+def admin():
+    docs = db.collection("line_sources").stream()
+    data = []
+    for doc in docs:
+        item = doc.to_dict()
+        data.append({
+            "id": doc.id,
+            "type": item.get("type", "N/A"),
+            "blocked": item.get("blocked", False),
+            "updated_at": item.get("updated_at", "")
+        })
+
+    return render_template_string("""
+    <h2>使用者/群組管理</h2>
+    <a href='/logout'>登出</a> | <a href='/logs'>查看日誌</a>
+    <table border='1' cellpadding='5'>
+        <tr>
+            <th>ID</th><th>類型</th><th>封鎖</th><th>操作</th><th>更新時間</th>
+        </tr>
+        {% for d in data %}
+        <tr>
+            <td>{{ d.id }}</td>
+            <td>{{ d.type }}</td>
+            <td>{{ "✅" if not d.blocked else "❌" }}</td>
+            <td>
+                {% if d.blocked %}
+                    <a href='/unblock/{{ d.id }}'>解鎖</a>
+                {% else %}
+                    <a href='/block/{{ d.id }}'>封鎖</a>
+                {% endif %}
+                | <a href='/delete/{{ d.id }}'>刪除</a>
+            </td>
+            <td>{{ d.updated_at }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    """, data=data)
+@app.route("/delete/<uid>")
+@require_login
+def delete_user(uid):
+    db.collection("line_sources").document(uid).delete()
+    return redirect(url_for("admin"))
