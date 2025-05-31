@@ -152,7 +152,12 @@ def admin():
             "id": doc.id,
             "type": item.get("type", "N/A"),
             "blocked": item.get("blocked", False),
-            "updated_at": item.get("updated_at", "")
+            from datetime import datetime
+import pytz
+updated_at = item.get("updated_at", "")
+if isinstance(updated_at, datetime):
+    updated_at = updated_at.astimezone(pytz.timezone("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")
+"updated_at": updated_at
         })
 
     return render_template_string("""
