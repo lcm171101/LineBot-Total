@@ -226,7 +226,7 @@ def push_test():
         from flask import json
         with app.test_request_context("/push", method="POST", json={"to": to, "type": msg_type, "content": content}):
             resp = push()
-            result = resp.get_json()
+            result = resp[0].get_json() if isinstance(resp, tuple) else resp.get_json()
             message = json.dumps(result, ensure_ascii=False, indent=2)
 
     return render_template_string("""
