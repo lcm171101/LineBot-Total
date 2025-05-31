@@ -112,6 +112,28 @@ def push():
         try:
             if msg_type == "text":
                 line_bot_api.push_message(to_id, TextSendMessage(text=content))
+
+    elif msg_type == "image_link":
+        from linebot.models import FlexSendMessage
+        image_url = content.get("image")
+        link_url = content.get("link")
+        bubble = {
+            "type": "bubble",
+            "hero": {
+                "type": "image",
+                "url": image_url,
+                "size": "full",
+                "aspectRatio": "20:13",
+                "aspectMode": "cover"
+            }
+        }
+        if link_url:
+            bubble["hero"]["action"] = {
+                "type": "uri",
+                "uri": link_url
+            }
+        line_bot_api.push_message(to_id, FlexSendMessage(alt_text="圖片訊息", contents=bubble))
+
             elif msg_type == "image":
                 line_bot_api.push_message(to_id, ImageSendMessage(original_content_url=content, preview_image_url=content))
             return True
@@ -141,6 +163,7 @@ def push():
     db.collection("push_logs").add({
         "to": to,
         "type": msg_type,
+        "raw": content,
         "content": content,
         "timestamp": datetime.datetime.now(pytz.timezone("Asia/Taipei"))
     })
