@@ -181,17 +181,11 @@ def push_test():
         msg_type = request.form.get("type")
         content = request.form.get("content")
 
-        import json
-        from flask import Response
-
-        headers = {"Content-Type": "application/json"}
-        data = json.dumps({"to": to, "type": msg_type, "content": content})
-        try:
-            resp = requests.post(url_for("push", _external=True), data=data, headers=headers)
-            result = resp.json()
-            message = str(result)
-        except Exception as e:
-            message = f"錯誤: {str(e)}"
+        from flask import json
+        with app.test_request_context("/push", method="POST", json={"to": to, "type": msg_type, "content": content}):
+            resp = push()
+            result = resp.get_json()
+            message = json.dumps(result, ensure_ascii=False, indent=2)
 
     return render_template_string("""
     <h2>推播測試工具</h2>
